@@ -1,0 +1,61 @@
+swagger: "2.0"
+info:
+  title: Hash Server
+  description: An exercise in golang
+  version: 1.0.0
+host: localhost:8080
+basePath: /
+schemes:
+  - http
+paths:
+  /hash:
+    post:
+      summary: Hash a new password
+      consumes:
+        - application/x-www-form-urlencoded
+      parameters:
+        - in: formData
+          name: password
+          type: string
+          description: password to be hashed
+      responses:
+        202:
+          description: The hashId to use in later retrieving the hash value
+          schema:
+            type: integer
+          
+  /hash/{hashId}:
+    get:
+      summary: Returns the hash value for the specified hashId
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: hashId
+          required: true
+          type: integer
+          minimum: 1
+          description: an identifier of the hash being requested
+      responses:
+        200:
+          description: the hashed value
+          schema:
+            type: string
+  /stats:
+    get:
+      summary: Returns some stats
+      produces:
+        - application/json
+      responses:
+        200:
+          description: the hashed value
+          schema:
+            type: string
+  /shutdown:
+    post:
+      summary: initiates a graceful shutdown of the server
+      produces:
+        - application/json
+      responses:
+        202:
+          description: the hashed value
