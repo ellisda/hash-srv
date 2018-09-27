@@ -27,7 +27,7 @@ Graceful Failure - sigterm will begin graceful shutdown, successive sigterm igno
 
  Q: Is it OK to reject POSTs to "/hash/" (i.e. with the trailing slash)? It will simplify the routing logic and allow me to specify one handler fun for GETs "/hash/" and a seperate handler func for POST "/hash".
 
- Q: What should the "stats" route return if not the string literal `{“total”: 1, “average”: 123}` ? I could return the total number of hash POSTs, or the total number of hash requests, or either of those as a per-last-interval value. I'm not sure what "average" is suppsoed to be other than the average number of hash requests per hashId.
+ Q: What should the "stats" route return for "average" (time spent processing)? Is this suppsoed to be wall clock time spent since app start, or the summation of 5 * numRequests, or some cpu usage metric in micro-seconds? 
 
  Q: Can I assume that we're not trying to protect against DOS attacks and aren't interested in rate limiting? My solution to the 5-sec delay is to spawn a goroutine for every request, but this has the potential to run out of goroutines or produce an out-of-memory condition that would crash the application.
 
