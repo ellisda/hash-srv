@@ -2,6 +2,8 @@ package hashserver
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,7 +16,7 @@ import (
 type HashServer struct {
 	http         http.Server
 	hashRequests chan hashRequest
-	hashes       map[uint32]string
+	hashes       map[uint32][64]byte
 	seqNum       uint32
 }
 
@@ -32,7 +34,7 @@ func New(port int) *HashServer {
 			Handler: mux,
 		},
 		hashRequests: make(chan hashRequest, 100),
-		hashes:       map[uint32]string{},
+		hashes:       map[uint32][64]byte{},
 		seqNum:       uint32(0),
 	}
 
@@ -79,8 +81,9 @@ func New(port int) *HashServer {
 func (srv *HashServer) Run() error {
 	go func() {
 		for r := range srv.hashRequests {
-			srv.hashes[r.seqNum] = r.password
-			log.Printf(" -- hasing %d - %s\n", r.seqNum, r.password)
+			hash := sha512.Sum512([]byte(r.password))
+			srv.hashes[r.seqNum] = hash
+			log.Printf(" -- hasing %d - %s\n", r.seqNum, base64.StdEncoding.EncodeToString(hash[:]))
 		}
 		log.Println("ending hashing processor")
 	}()
