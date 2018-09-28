@@ -91,7 +91,7 @@ func TestGetStats(t *testing.T) {
 		t.Error("Stats produced unexpected content")
 	}
 
-	srv.stats.NumProcessed = 1
+	srv.numProcessed = 1
 	recorder = execHandler(t, srv.getStats, req, 200)
 	var stats requestStats
 	json.Unmarshal(recorder.Body.Bytes(), &stats)
