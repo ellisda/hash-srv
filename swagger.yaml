@@ -23,7 +23,11 @@ paths:
           description: The hashId to use in later retrieving the hash value
           schema:
             type: integer
-          
+            example: 12
+        400:
+          description: Request was invalid
+
+            
   /hash/{hashId}:
     get:
       summary: Returns the hash value for the specified hashId
@@ -41,6 +45,12 @@ paths:
           description: the hashed value
           schema:
             type: string
+            example: ZEHhWB65gUlzdVwtDQArEyx+KVLzp/aTaRaPlBzYRIFj6vjFdqEb0Q5B8zVKCZ0vKbZPZklJz0Fd7su2A+gf7Q==
+        400:
+          description: Request was invalid
+          schema:
+            type: string
+            example: Invalid Request HashId "3ff" must be a positive integer
   /stats:
     get:
       summary: Returns some stats
@@ -48,9 +58,18 @@ paths:
         - application/json
       responses:
         200:
-          description: the hashed value
+          description: some simple request stats
           schema:
-            type: string
+            type: object
+            properties:
+              total:
+                type: integer
+                description: the number of hashes posted
+                example: 1
+              average:
+                type: integer
+                description: TBD - average hashing time (total running ms / requests) 
+                example: 123
   /shutdown:
     post:
       summary: initiates a graceful shutdown of the server
@@ -58,4 +77,4 @@ paths:
         - application/json
       responses:
         202:
-          description: the hashed value
+          description: the shutdown has been acknowledged

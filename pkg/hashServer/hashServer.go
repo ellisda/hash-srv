@@ -89,10 +89,10 @@ func (srv *HashServer) getHash(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Invalid URL - Request \"%d\" does not exist", request)
+		fmt.Fprintf(w, "Invalid Request: HashId \"%d\" does not exist", request)
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Invalid URL - Request \"%s\" must be a positive integer", routeParam)
+		fmt.Fprintf(w, "Invalid Request: HashId \"%s\" must be a positive integer", routeParam)
 	}
 }
 
