@@ -78,9 +78,7 @@ func (srv *HashServer) hashRequest(w http.ResponseWriter, r *http.Request) {
 
 func (srv *HashServer) getHash(w http.ResponseWriter, r *http.Request) {
 	routeParam := r.URL.Path[len("/hash/"):]
-
 	if request, err := strconv.Atoi(routeParam); err == nil {
-		// fmt.Fprintf(w, "Received request for Hash Num: %d", request)
 		srv.hashLock.RLock()
 		defer srv.hashLock.RUnlock()
 		if hsh, ok := srv.hashes[uint32(request)]; ok {
@@ -97,9 +95,7 @@ func (srv *HashServer) getHash(w http.ResponseWriter, r *http.Request) {
 }
 
 func (srv *HashServer) getStats(w http.ResponseWriter, r *http.Request) {
-	stats := requestStats{
-		NumProcessed: srv.numProcessed,
-	}
+	stats := requestStats{NumProcessed: srv.numProcessed}
 	if stats.NumProcessed > 0 {
 		duration := time.Now().Sub(stats.start)
 		stats.AverageMs = uint32(duration.Seconds()*1000) / stats.NumProcessed
@@ -115,7 +111,6 @@ func (srv *HashServer) getStats(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		log.Printf("error marshalling stats as json response, err:%v\n", err)
 	}
-	// fmt.Fprintf(w, "{\"total\": 1, \"average\": 123}")
 }
 
 func (stats *requestStats) computeStats() {
