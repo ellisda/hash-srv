@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha512"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,12 +20,18 @@ type HashServer struct {
 	hashRequests chan hashRequest
 	hashes       map[uint32][64]byte
 	hashLock     sync.RWMutex
-	seqNum       uint32
+	stats        *requestStats
 }
 
 type hashRequest struct {
 	seqNum   uint32
 	password string
+}
+
+type requestStats struct {
+	NumProcessed uint32 `json:"total"`
+	AverageMs    uint32 `json:"average"`
+	start        time.Time
 }
 
 //NewHashServer creates a new HashServer with http routes configured and ready to run
@@ -37,14 +44,12 @@ func NewHashServer(port int) *HashServer {
 		},
 		hashRequests: make(chan hashRequest, 100),
 		hashes:       map[uint32][64]byte{},
-		seqNum:       uint32(0),
+		stats:        &requestStats{},
 	}
 
 	mux.HandleFunc("/hash", srv.hashRequest)
 	mux.HandleFunc("/hash/", srv.getHash)
-	mux.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "{\"total\": 1, \"average\": 123}")
-	})
+	mux.HandleFunc("/stats", srv.getStats)
 	mux.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
 		go srv.Shutdown()
 		w.WriteHeader(202)
@@ -62,7 +67,7 @@ func (srv *HashServer) hashRequest(w http.ResponseWriter, r *http.Request) {
 		} else {
 			req := hashRequest{
 				password: pwd[0], //? more than one value
-				seqNum:   atomic.AddUint32(&srv.seqNum, 1),
+				seqNum:   atomic.AddUint32(&srv.stats.NumProcessed, 1),
 			}
 			time.AfterFunc(5*time.Second, func() { srv.hashRequests <- req })
 			w.WriteHeader(202)
@@ -91,8 +96,31 @@ func (srv *HashServer) getHash(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (srv *HashServer) getStats(w http.ResponseWriter, r *http.Request) {
+	srv.stats.computeStats()
+	if json, err := json.Marshal(srv.stats); err == nil {
+		i, err := w.Write(json)
+		if len(json) != i || err != nil {
+			log.Printf("error writing stats to ResponseWriter, only wrote %d of %d bytes, err:%v\n",
+				i, len(json), err)
+		}
+	} else {
+		w.WriteHeader(500)
+		log.Printf("error marshalling stats as json response, err:%v\n", err)
+	}
+	// fmt.Fprintf(w, "{\"total\": 1, \"average\": 123}")
+}
+
+func (stats *requestStats) computeStats() {
+	if stats.NumProcessed > 0 {
+		duration := time.Now().Sub(stats.start)
+		stats.AverageMs = uint32(duration.Seconds()*1000) / stats.NumProcessed
+	}
+}
+
 //Run the server, blocking until it's been shutdown
 func (srv *HashServer) Run() error {
+	srv.stats.start = time.Now()
 	go func() {
 		for r := range srv.hashRequests {
 			hash := sha512.Sum512([]byte(r.password))

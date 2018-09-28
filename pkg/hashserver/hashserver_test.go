@@ -2,6 +2,7 @@ package hashserver
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -88,5 +89,36 @@ func TestGetHashRequest(t *testing.T) {
 	}
 	if recorder.Body.String() != base64.StdEncoding.EncodeToString(hashVal[:]) {
 		t.Error("Expected HTTP Response to match base64 hashed value")
+	}
+}
+
+func TestGetStats(t *testing.T) {
+	srv, recorder := getTestServer()
+
+	req, err := http.NewRequest("GET", "/stats", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	http.HandlerFunc(srv.getStats).ServeHTTP(recorder, req)
+	if recorder.Code != 200 {
+		t.Error("Expected HTTP Response Status 200")
+	}
+	if recorder.Body.String() != "{\"total\":0,\"average\":0}" {
+		t.Error("Stats produced unexpected content")
+	}
+
+	srv.stats.NumProcessed = 1
+	recorder = httptest.NewRecorder()
+	http.HandlerFunc(srv.getStats).ServeHTTP(recorder, req)
+	if recorder.Code != 200 {
+		t.Error("Expected HTTP Response Status 200")
+	}
+	var stats requestStats
+	bytes := recorder.Body.Bytes()
+	s := string(bytes)
+	t.Log(s)
+	json.Unmarshal(bytes, &stats)
+	if stats.NumProcessed != 1 {
+		t.Error("Stats produced unexpected content")
 	}
 }
