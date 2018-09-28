@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -17,6 +18,7 @@ type HashServer struct {
 	http         http.Server
 	hashRequests chan hashRequest
 	hashes       map[uint32][64]byte
+	hashLock     sync.RWMutex
 	seqNum       uint32
 }
 
@@ -25,7 +27,7 @@ type hashRequest struct {
 	password string
 }
 
-//NewHashServer creates a new HashServer, with http routes configured and ready to run
+//NewHashServer creates a new HashServer with http routes configured and ready to run
 func NewHashServer(port int) *HashServer {
 	mux := http.NewServeMux()
 	srv := &HashServer{
@@ -62,7 +64,6 @@ func (srv *HashServer) hashRequest(w http.ResponseWriter, r *http.Request) {
 				password: pwd[0], //? more than one value
 				seqNum:   atomic.AddUint32(&srv.seqNum, 1),
 			}
-			//no garbage collection of timer
 			time.AfterFunc(5*time.Second, func() { srv.hashRequests <- req })
 			w.WriteHeader(202)
 			fmt.Fprintf(w, "%d", req.seqNum)
@@ -75,15 +76,17 @@ func (srv *HashServer) getHash(w http.ResponseWriter, r *http.Request) {
 
 	if request, err := strconv.Atoi(routeParam); err == nil {
 		// fmt.Fprintf(w, "Received request for Hash Num: %d", request)
+		srv.hashLock.RLock()
+		defer srv.hashLock.RUnlock()
 		if hsh, ok := srv.hashes[uint32(request)]; ok {
-			fmt.Fprintf(w, base64.StdEncoding.EncodeToString(hsh[:]))
 			w.WriteHeader(200)
+			fmt.Fprintf(w, base64.StdEncoding.EncodeToString(hsh[:]))
 			return
 		}
-		w.WriteHeader(400)
+		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Invalid URL - Request \"%d\" does not exist", request)
 	} else {
-		w.WriteHeader(400)
+		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Invalid URL - Request \"%s\" must be a positive integer", routeParam)
 	}
 }
@@ -93,7 +96,9 @@ func (srv *HashServer) Run() error {
 	go func() {
 		for r := range srv.hashRequests {
 			hash := sha512.Sum512([]byte(r.password))
+			srv.hashLock.Lock()
 			srv.hashes[r.seqNum] = hash
+			srv.hashLock.Unlock()
 			log.Printf(" -- hasing %d - %s\n", r.seqNum, base64.StdEncoding.EncodeToString(hash[:]))
 		}
 		log.Println("ending hashing processor")

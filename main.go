@@ -14,6 +14,6 @@ func main() {
 	srv := hashserver.NewHashServer(*port)
 
 	if err := srv.Run(); err != nil {
-		log.Fatal("error running the hash server: %v", err)
+		log.Fatalf("error running the hash server: %v", err)
 	}
 }

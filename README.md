@@ -46,3 +46,8 @@ I need include unit tests, and ideally some integration tests (if I find that I 
  - no need for dependency management (eg: dep, glide) since we're only using Std lib
 
  - How to integration test?
+
+
+## Design Review
+
+The 5-sec delay in the request for new hash processing could be implemented in different ways. I chose `timer.AfterFunc` which can't be cancelled or garbage collected until after it fires. Since we want the graceful shutdown to wait until the pending requests have been processed, this seemed acceptable. An alternative would be to put all incoming requests directly on a channel, but this could block the http handler if the bufffered channel filled up, which is in conflict with the requirement that the handler return immediately.
