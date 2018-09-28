@@ -1,16 +1,21 @@
 package hashserver
 
 import (
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-func TestHashRequest(t *testing.T) {
-	srv := New(8080)
+var hashVal = [64]byte{0, 1, 2, 3, 4, 5, 6, 7}
 
-	recorder := httptest.NewRecorder()
+func getTestServer() (*HashServer, *httptest.ResponseRecorder) {
+	return NewHashServer(8080), httptest.NewRecorder()
+}
+
+func TestHashRequest(t *testing.T) {
+	srv, recorder := getTestServer()
 
 	req, err := http.NewRequest("POST", "/hash", strings.NewReader("password=foo"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
@@ -39,8 +44,7 @@ func TestHashRequest(t *testing.T) {
 }
 
 func TestHashRequestRejected(t *testing.T) {
-	srv := New(8080)
-	recorder := httptest.NewRecorder()
+	srv, recorder := getTestServer()
 
 	emptyReq, err := http.NewRequest("POST", "/hash", nil)
 	if err != nil {
@@ -61,5 +65,28 @@ func TestHashRequestRejected(t *testing.T) {
 	http.HandlerFunc(srv.hashRequest).ServeHTTP(recorder, badReq)
 	if recorder.Code != 400 {
 		t.Fatal("Expected 400 Status for POST body without 'password' form value")
+	}
+}
+
+func TestGetHashRequest(t *testing.T) {
+	srv, recorder := getTestServer()
+
+	req, err := http.NewRequest("GET", "/hash/1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	http.HandlerFunc(srv.getHash).ServeHTTP(recorder, req)
+	if recorder.Code != 400 {
+		t.Error("Expected HTTP Response Status 400 before hash key exists")
+	}
+
+	recorder = httptest.NewRecorder()
+	srv.hashes[1] = hashVal
+	http.HandlerFunc(srv.getHash).ServeHTTP(recorder, req)
+	if recorder.Code != 200 {
+		t.Error("Expected HTTP Response Status 200 after hash key exists")
+	}
+	if recorder.Body.String() != base64.StdEncoding.EncodeToString(hashVal[:]) {
+		t.Error("Expected HTTP Response to match base64 hashed value")
 	}
 }

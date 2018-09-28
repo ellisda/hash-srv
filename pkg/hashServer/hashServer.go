@@ -25,8 +25,8 @@ type hashRequest struct {
 	password string
 }
 
-//New creates a new HashServer, with http routes configured and ready to run
-func New(port int) *HashServer {
+//NewHashServer creates a new HashServer, with http routes configured and ready to run
+func NewHashServer(port int) *HashServer {
 	mux := http.NewServeMux()
 	srv := &HashServer{
 		http: http.Server{
@@ -74,8 +74,16 @@ func (srv *HashServer) getHash(w http.ResponseWriter, r *http.Request) {
 	routeParam := r.URL.Path[len("/hash/"):]
 
 	if request, err := strconv.Atoi(routeParam); err == nil {
-		fmt.Fprintf(w, "Received request for Hash Num: %d", request)
+		// fmt.Fprintf(w, "Received request for Hash Num: %d", request)
+		if hsh, ok := srv.hashes[uint32(request)]; ok {
+			fmt.Fprintf(w, base64.StdEncoding.EncodeToString(hsh[:]))
+			w.WriteHeader(200)
+			return
+		}
+		w.WriteHeader(400)
+		fmt.Fprintf(w, "Invalid URL - Request \"%d\" does not exist", request)
 	} else {
+		w.WriteHeader(400)
 		fmt.Fprintf(w, "Invalid URL - Request \"%s\" must be a positive integer", routeParam)
 	}
 }

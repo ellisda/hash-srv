@@ -11,7 +11,7 @@ func main() {
 	port := flag.Int("port", 8080, "port to listen on")
 	flag.Parse()
 
-	srv := hashserver.New(*port)
+	srv := hashserver.NewHashServer(*port)
 
 	if err := srv.Run(); err != nil {
 		log.Fatal("error running the hash server: %v", err)
