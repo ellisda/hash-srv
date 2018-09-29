@@ -16,6 +16,7 @@ import (
 
 //HashServer is an HTTP server that processes password hasing requests
 type HashServer struct {
+	verbose      bool
 	http         http.Server
 	hashRequests chan hashRequest
 	done         chan struct{}
@@ -38,13 +39,14 @@ type requestStats struct {
 }
 
 //NewHashServer creates a new HashServer with http routes configured and ready to run
-func NewHashServer(port int) *HashServer {
+func NewHashServer(port int, verbose bool) *HashServer {
 	mux := http.NewServeMux()
 	srv := &HashServer{
 		http: http.Server{
 			Addr:    fmt.Sprintf(":%d", port),
 			Handler: mux,
 		},
+		verbose:      verbose,
 		done:         make(chan struct{}),
 		hashRequests: make(chan hashRequest, 100),
 		hashes:       map[uint32][64]byte{},
@@ -135,7 +137,9 @@ func (srv *HashServer) Run() error {
 			srv.hashLock.Lock()
 			srv.hashes[r.seqNum] = hash
 			srv.hashLock.Unlock()
-			log.Printf(" -- hasing %d - %s\n", r.seqNum, base64.StdEncoding.EncodeToString(hash[:]))
+			if srv.verbose {
+				log.Printf(" -- hasing %d - %s\n", r.seqNum, base64.StdEncoding.EncodeToString(hash[:]))
+			}
 		}
 		log.Println("ending hashing processor")
 		srv.done <- struct{}{}

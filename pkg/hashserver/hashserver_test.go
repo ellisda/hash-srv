@@ -12,7 +12,7 @@ import (
 var hashVal = [64]byte{0, 1, 2, 3, 4, 5, 6, 7}
 
 func getTestServer() *HashServer {
-	return NewHashServer(8080)
+	return NewHashServer(8080, true)
 }
 
 func execHandler(t *testing.T, h func(http.ResponseWriter, *http.Request), req *http.Request, expectedStatus int,
