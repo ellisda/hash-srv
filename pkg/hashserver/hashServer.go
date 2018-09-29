@@ -18,6 +18,8 @@ import (
 type HashServer struct {
 	http         http.Server
 	hashRequests chan hashRequest
+	done         chan struct{}
+	producers    sync.WaitGroup
 	hashes       map[uint32][64]byte
 	hashLock     sync.RWMutex
 	numProcessed uint32
@@ -43,6 +45,7 @@ func NewHashServer(port int) *HashServer {
 			Addr:    fmt.Sprintf(":%d", port),
 			Handler: mux,
 		},
+		done:         make(chan struct{}),
 		hashRequests: make(chan hashRequest, 100),
 		hashes:       map[uint32][64]byte{},
 	}
@@ -60,16 +63,19 @@ func NewHashServer(port int) *HashServer {
 func (srv *HashServer) hashRequest(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		w.WriteHeader(400)
-		// fmt.Fprint(w, "unable to parse form data")
 	} else {
 		if pwd, ok := r.Form["password"]; !ok || len(pwd) == 0 {
 			w.WriteHeader(400)
 		} else {
 			req := hashRequest{
-				password: pwd[0], //? more than one value
+				password: pwd[0],
 				seqNum:   atomic.AddUint32(&srv.numProcessed, 1),
 			}
-			time.AfterFunc(5*time.Second, func() { srv.hashRequests <- req })
+			srv.producers.Add(1)
+			time.AfterFunc(5*time.Second, func() {
+				srv.hashRequests <- req
+				srv.producers.Done()
+			})
 			w.WriteHeader(202)
 			fmt.Fprintf(w, "%d", req.seqNum)
 		}
@@ -132,19 +138,21 @@ func (srv *HashServer) Run() error {
 			log.Printf(" -- hasing %d - %s\n", r.seqNum, base64.StdEncoding.EncodeToString(hash[:]))
 		}
 		log.Println("ending hashing processor")
+		srv.done <- struct{}{}
 	}()
 
 	log.Printf("Starting HTTP Server at %s\n", srv.http.Addr)
-	if err := srv.http.ListenAndServe(); err != nil {
+	if err := srv.http.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("error running Server: %v\n", err)
 		return err
 	}
+	<-srv.done
 	return nil
 }
 
 //Shutdown the server, and wait for all pending requests to complete
 func (srv *HashServer) Shutdown() {
 	srv.http.Shutdown(context.Background())
+	srv.producers.Wait()
 	close(srv.hashRequests)
-	//TODO - wait for pending requests that are already on chan
 }
