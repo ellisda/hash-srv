@@ -24,7 +24,7 @@ type HashServer struct {
 	hashes       map[uint32][64]byte
 	hashLock     sync.RWMutex
 	numProcessed uint32
-	start        time.Time
+	processed    time.Duration
 }
 
 type hashRequest struct {
@@ -34,8 +34,7 @@ type hashRequest struct {
 
 type requestStats struct {
 	NumProcessed uint32 `json:"total"`
-	AverageMs    uint32 `json:"average"`
-	start        time.Time
+	AverageNanos uint32 `json:"average"`
 }
 
 //NewHashServer creates a new HashServer with http routes configured and ready to run
@@ -63,6 +62,7 @@ func NewHashServer(port int, verbose bool) *HashServer {
 }
 
 func (srv *HashServer) hashRequest(w http.ResponseWriter, r *http.Request) {
+	defer srv.addProcessingTime(time.Now())
 	if err := r.ParseForm(); err != nil {
 		w.WriteHeader(400)
 	} else {
@@ -82,6 +82,10 @@ func (srv *HashServer) hashRequest(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "%d", req.seqNum)
 		}
 	}
+}
+
+func (srv *HashServer) addProcessingTime(start time.Time) {
+	atomic.AddInt64((*int64)(&srv.processed), int64(time.Since(start)))
 }
 
 func (srv *HashServer) getHash(w http.ResponseWriter, r *http.Request) {
@@ -105,8 +109,7 @@ func (srv *HashServer) getHash(w http.ResponseWriter, r *http.Request) {
 func (srv *HashServer) getStats(w http.ResponseWriter, r *http.Request) {
 	stats := requestStats{NumProcessed: srv.numProcessed}
 	if stats.NumProcessed > 0 {
-		duration := time.Now().Sub(stats.start)
-		stats.AverageMs = uint32(duration.Seconds()*1000) / stats.NumProcessed
+		stats.AverageNanos = uint32(srv.processed.Seconds() * 1000 / float64(stats.NumProcessed))
 	}
 
 	if json, err := json.Marshal(stats); err == nil {
@@ -123,7 +126,6 @@ func (srv *HashServer) getStats(w http.ResponseWriter, r *http.Request) {
 
 //Run the server, blocking until it's been shutdown
 func (srv *HashServer) Run() error {
-	srv.start = time.Now()
 	go func() {
 		for r := range srv.hashRequests {
 			hash := sha512.Sum512([]byte(r.password))
