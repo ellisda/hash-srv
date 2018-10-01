@@ -109,7 +109,7 @@ func (srv *HashServer) getHash(w http.ResponseWriter, r *http.Request) {
 func (srv *HashServer) getStats(w http.ResponseWriter, r *http.Request) {
 	stats := requestStats{NumProcessed: srv.numProcessed}
 	if stats.NumProcessed > 0 {
-		stats.AverageNanos = uint32(srv.processed.Seconds() * 1000 / float64(stats.NumProcessed))
+		stats.AverageNanos = uint32(srv.processed.Nanoseconds() / int64(stats.NumProcessed))
 	}
 
 	if json, err := json.Marshal(stats); err == nil {
