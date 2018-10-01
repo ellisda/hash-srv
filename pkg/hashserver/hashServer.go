@@ -121,13 +121,6 @@ func (srv *HashServer) getStats(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (stats *requestStats) computeStats() {
-	if stats.NumProcessed > 0 {
-		duration := time.Now().Sub(stats.start)
-		stats.AverageMs = uint32(duration.Seconds()*1000) / stats.NumProcessed
-	}
-}
-
 //Run the server, blocking until it's been shutdown
 func (srv *HashServer) Run() error {
 	srv.start = time.Now()
