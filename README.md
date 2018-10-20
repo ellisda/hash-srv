@@ -1,4 +1,5 @@
 # Go Concurrency Challenge
+[![Build Status](https://travis-ci.org/ellisda/hash-srv.svg?branch=master)](https://travis-ci.org/ellisda/hash-srv)
 
 Build with
 
