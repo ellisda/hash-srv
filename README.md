@@ -22,6 +22,13 @@ Quick System Test (while server is running)
             -H "Content-Type: application/x-www-form-urlencoded";
     done > /dev/null 2>&1
 
+Docker Build / Deploy (from [Building Minimal Docker Containers for Go Applications](https://blog.codeship.com/building-minimal-docker-containers-for-go-applications/))
+
+    docker build -t hash-srv -f Dockerfile .
+
+    docker run -p 8080:8080 hash-srv
+
+
 ## Assumptions
 I've omitted the problem statement, but I make the following assumptions from it:
 
